@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <link rel="icon" type="image/png" href="Santa_Cecilia.png">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Santa Cecília Slide Editor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            navy: { DEFAULT: '#4B2D3A', 600: '#4B2D3A', 700: '#39232D', 800: '#2B1B22' },
+            accent: { DEFAULT: '#8A3D4A', 500: '#8A3D4A', 600: '#6F2636' }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 8px; }
+    ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 8px; }
+    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    body { background: #f1f5f9; color: #243447; }
+    input, select, textarea { accent-color: #8A3D4A; }
+    button { transition: background-color .18s ease, border-color .18s ease, transform .18s ease; }
+    button:active { transform: translateY(1px); }
+    .drop-active { border-color: #8A3D4A !important; background-color: rgba(22, 135, 125, .08) !important; }
+    body.dragging-file::after {
+      content: "Solte o arquivo .pptx aqui para abrir";
+      position: fixed;
+      inset: 12px;
+      border: 3px dashed #8A3D4A;
+      border-radius: 18px;
+      background: rgba(241, 245, 249, .9);
+      color: #4B2D3A;
+      font-size: 1.2rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      pointer-events: none;
+    }
+
+    /* Tema Santa Cecília */
+    body { background: #F7F1E7; color: #3E2B31; }
+    header { background: rgba(255, 250, 242, .96) !important; border-color: #E5D6C0 !important; }
+    .bg-white { background-color: #FFFAF2 !important; }
+    .border-slate-200 { border-color: #E5D6C0 !important; }
+    .text-slate-800 { color: #4B2D3A !important; }
+    .text-slate-700 { color: #5A3A43 !important; }
+    .text-slate-600 { color: #735B5F !important; }
+    .text-slate-500 { color: #8A7474 !important; }
+    .bg-slate-50 { background-color: #F4EBDD !important; }
+    .bg-slate-100 { background-color: #EFE3D2 !important; }
+    .hover\\:bg-slate-50:hover { background-color: #F4EBDD !important; }
+    .drop-active { border-color: #C19A53 !important; background-color: rgba(193, 154, 83, .12) !important; }
+    input, select, textarea { accent-color: #8A3D4A; }
+    #btn-export-top, button.bg-\\[\\#8A3D4A\\] { box-shadow: 0 3px 10px rgba(138, 61, 74, .16); }
+    h1 { color: #4B2D3A; }
+  </style>
+</head>
+<body class="font-sans antialiased min-h-screen flex flex-col">
+
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-md w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <header class="bg-white/95 backdrop-blur border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full overflow-hidden shrink-0 bg-transparent">
+          <img src="Santa_Cecilia.png" alt="Santa Cecília" class="w-full h-full object-cover" />
+        </div>
+        <h1 class="text-lg sm:text-xl font-bold text-slate-800 tracking-tight leading-none">Santa Cecília Slide Editor</h1>
+      </div>
+
+      <button id="btn-export-top" type="button" disabled class="hidden items-center gap-2 px-4 py-2 text-sm font-bold bg-[#8A3D4A] hover:bg-[#6F2636] text-white disabled:bg-slate-200 disabled:text-slate-500 disabled:cursor-not-allowed rounded-xl shadow-sm cursor-pointer">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        <span>Baixar</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+
+    <section id="upload-section" class="max-w-3xl mx-auto">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-10 text-center">
+        <div id="drop-zone" class="border-2 border-dashed border-slate-300 rounded-2xl p-8 sm:p-12 transition-all cursor-pointer hover:border-[#8A3D4A] hover:bg-slate-50 group">
+          <input type="file" id="file-input" accept=".pptx" class="hidden" />
+          <div class="w-16 h-16 mx-auto rounded-2xl bg-[#4B2D3A]/15 border border-[#4B2D3A]/30 text-[#8A3D4A] flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+          </div>
+          <h2 class="text-xl font-bold text-slate-800">Solte o arquivo aqui!</h2>
+          <div class="mt-6 flex justify-center">
+            <span class="px-5 py-2.5 rounded-xl bg-[#8A3D4A] text-white text-sm font-bold shadow-sm group-hover:bg-[#6F2636] transition">
+              Selecionar Arquivo .pptx
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div id="workspace-section" class="hidden space-y-6">
+
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-3.5 min-w-0">
+          <div class="w-12 h-12 rounded-xl bg-[#4B2D3A] text-[#39A69A] flex items-center justify-center font-extrabold text-xs tracking-wider shrink-0">
+            PPTX
+          </div>
+          <div class="min-w-0 flex flex-wrap items-center gap-2">
+            <h2 id="loaded-filename" class="text-base font-bold text-slate-800 truncate"></h2>
+            <span id="loaded-slide-count" class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-slate-100 text-[#4B2D3A] border border-slate-300 shrink-0">0 slides</span>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5">
+          <button id="btn-change-file" type="button" class="px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-xl cursor-pointer">
+            Carregar Outro Arquivo
+          </button>
+          <button id="btn-toggle-appearance" type="button" aria-expanded="false" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl cursor-pointer">
+            <span>Fonte</span>
+            <svg class="w-4 h-4 transition-transform" id="appearance-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div id="appearance-panel" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <div>
+            <label for="fmt-font-family" class="block text-xs font-semibold text-slate-600 mb-1">Família da Fonte</label>
+            <select id="fmt-font-family" class="w-full text-xs sm:text-sm bg-slate-100 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-[#8A3D4A]">
+              <option value="Arial" selected>Arial</option>
+              <option value="Calibri">Calibri</option>
+              <option value="Segoe UI">Segoe UI</option>
+              <option value="Montserrat">Montserrat</option>
+              <option value="Roboto">Roboto</option>
+              <option value="Verdana">Verdana</option>
+            </select>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label for="fmt-font-size" class="text-xs font-semibold text-slate-600">Tamanho (pt)</label>
+              <span id="fmt-font-size-val" class="text-xs font-bold text-[#8A3D4A]">38 pt</span>
+            </div>
+            <div class="flex items-center bg-slate-100 border border-slate-300 rounded-xl px-3 py-2">
+              <input id="fmt-font-size" type="range" min="20" max="72" value="38" class="w-full cursor-pointer" />
+            </div>
+          </div>
+
+          <div>
+            <label for="fmt-text-color" class="block text-xs font-semibold text-slate-600 mb-1">Cor do Texto</label>
+            <div class="flex items-center gap-2 bg-slate-100 border border-slate-300 rounded-xl px-2.5 py-1.5">
+              <input id="fmt-text-color" type="color" value="#FFFFFF" class="w-7 h-7 rounded cursor-pointer bg-transparent border-0" />
+              <input id="fmt-text-color-hex" type="text" value="#FFFFFF" maxlength="7" class="w-full bg-transparent text-xs font-mono font-bold text-slate-800 uppercase focus:outline-none" />
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3.5 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
+          <div class="sm:col-span-6">
+            <div class="flex items-center justify-between mb-1">
+              <label for="fmt-top-margin" class="text-xs font-semibold text-slate-600">Distância do topo (%)</label>
+              <span id="fmt-top-margin-val" class="text-xs font-bold text-[#4B2D3A]">18%</span>
+            </div>
+            <input id="fmt-top-margin" type="range" min="5" max="45" value="18" class="w-full cursor-pointer" />
+          </div>
+
+          <div class="sm:col-span-6 flex flex-wrap items-center sm:justify-end gap-4">
+            <label class="inline-flex items-center gap-2 cursor-pointer select-none bg-slate-100 border border-slate-300 px-3 py-2 rounded-xl hover:border-slate-400">
+              <input id="fmt-bold" type="checkbox" checked class="w-4 h-4 rounded cursor-pointer" />
+              <span class="text-xs font-bold text-slate-800">Negrito</span>
+            </label>
+            <label class="inline-flex items-center gap-2 cursor-pointer select-none bg-slate-100 border border-slate-300 px-3 py-2 rounded-xl hover:border-slate-400">
+              <input id="fmt-uppercase" type="checkbox" checked class="w-4 h-4 rounded cursor-pointer" />
+              <span class="text-xs font-bold text-slate-800">CAIXA ALTA</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <aside class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="p-4 sm:p-5 border-b border-slate-200">
+            <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Slides</h3>
+          </div>
+          <div id="slides-list" class="p-4 space-y-2.5 max-h-[720px] overflow-y-auto"></div>
+        </aside>
+
+        <section class="lg:col-span-7 space-y-5">
+          <div id="songs-container" class="space-y-5"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const OOXML_NS = {
+      p: 'http://schemas.openxmlformats.org/presentationml/2006/main',
+      a: 'http://schemas.openxmlformats.org/drawingml/2006/main',
+      r: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
+      rel: 'http://schemas.openxmlformats.org/package/2006/relationships',
+      ct: 'http://schemas.openxmlformats.org/package/2006/content-types'
+    };
+
+    const AppState = {
+      originalBuffer: null,
+      fileName: '',
+      slideWidthEmu: 12192000,
+      slideHeightEmu: 6858000,
+      originalSlides: [],
+      songs: [],
+      selectedSlideIndex: null,
+      selectedSongId: null,
+      nextSongId: 1,
+      style: {
+        fontFamily: 'Arial',
+        fontSizePt: 38,
+        textColor: '#FFFFFF',
+        bold: true,
+        uppercase: true,
+        topMarginPct: 18
+      }
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    function isFileLoaded() {
+      return Boolean(AppState.originalBuffer && AppState.originalSlides.length > 0);
+    }
+
+    function escapeHtml(str) {
+      return (str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function showToast(message, type = 'info') {
+      const styles = {
+        success: 'bg-emerald-600 text-white border-emerald-500',
+        error: 'bg-rose-600 text-white border-rose-500',
+        info: 'bg-[#4B2D3A] text-white border-sky-400/30',
+        warning: 'bg-[#8A3D4A] text-white border-teal-400'
+      };
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto flex items-center justify-between gap-3 px-4 py-3 rounded-xl border shadow-lg text-xs sm:text-sm font-medium transition-all duration-300 translate-y-2 opacity-0 ${styles[type] || styles.info}`;
+      toast.innerHTML = `<span>${escapeHtml(message)}</span><button type="button" class="opacity-80 hover:opacity-100 font-bold ml-2 cursor-pointer" onclick="this.parentElement.remove()">✕</button>`;
+      $('toast-container').appendChild(toast);
+      requestAnimationFrame(() => toast.classList.remove('translate-y-2', 'opacity-0'));
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 4500);
+    }
+
+    function resolveZipPath(baseDir, targetPath) {
+      if (!targetPath) return '';
+      if (targetPath.startsWith('/')) return targetPath.replace(/^\/+/, '');
+      const parts = baseDir ? baseDir.split('/').filter(Boolean) : [];
+      for (const part of targetPath.split('/').filter(Boolean)) {
+        if (part === '.') continue;
+        if (part === '..') parts.pop();
+        else parts.push(part);
+      }
+      return parts.join('/');
+    }
+
+    function applyTextCase(text) {
+      return AppState.style.uppercase ? text.toUpperCase() : text;
+    }
+
+    function parseStanzas(rawLyrics) {
+      if (!rawLyrics || !rawLyrics.trim()) return [];
+      return rawLyrics
+        .replace(/\r\n/g, '\n')
+        .trim()
+        .split(/\n\s*\n+/)
+        .map((block) => block.trim())
+        .filter(Boolean);
+    }
+
+    function isTopTitleShape(spNode, slideHeightEmu) {
+      const phNode = spNode.getElementsByTagNameNS('*', 'ph')[0];
+      if (phNode) {
+        const phType = (phNode.getAttribute('type') || '').toLowerCase();
+        if (phType === 'title' || phType === 'ctrtitle') return true;
+        if (phType === 'body' || phType === 'obj' || phType === 'subtitle') return false;
+      }
+      const offNode = spNode.getElementsByTagNameNS('*', 'off')[0];
+      if (offNode) {
+        const y = parseInt(offNode.getAttribute('y') || '0', 10);
+        if (!isNaN(y) && y < slideHeightEmu * 0.22) {
+          const extNode = spNode.getElementsByTagNameNS('*', 'ext')[0];
+          const cy = extNode ? parseInt(extNode.getAttribute('cy') || '0', 10) : 0;
+          if (cy === 0 || cy < slideHeightEmu * 0.35) return true;
+        }
+      }
+      return false;
+    }
+
+    function resetToUploadScreen() {
+      AppState.originalBuffer = null;
+      AppState.fileName = '';
+      AppState.originalSlides = [];
+      AppState.songs = [];
+      AppState.selectedSlideIndex = null;
+      AppState.selectedSongId = null;
+      AppState.nextSongId = 1;
+
+      $('file-input').value = '';
+      $('slides-list').innerHTML = '';
+      $('songs-container').innerHTML = '';
+      $('workspace-section').classList.add('hidden');
+      $('upload-section').classList.remove('hidden');
+      $('btn-export-top').classList.add('hidden');
+      $('btn-export-top').classList.remove('inline-flex');
+      $('btn-export-top').disabled = true;
+    }
+
+    async function loadPptxBuffer(arrayBuffer, fileName) {
+      if (isFileLoaded()) return;
+
+      try {
+        const zip = await JSZip.loadAsync(arrayBuffer);
+        const presFile = zip.file('ppt/presentation.xml');
+        const presRelsFile = zip.file('ppt/_rels/presentation.xml.rels');
+
+        if (!presFile || !presRelsFile) {
+          throw new Error('Arquivo inválido: ppt/presentation.xml não encontrado.');
+        }
+
+        const parser = new DOMParser();
+        const presDoc = parser.parseFromString(await presFile.async('text'), 'application/xml');
+        const presRelsDoc = parser.parseFromString(await presRelsFile.async('text'), 'application/xml');
+
+        if (presDoc.getElementsByTagName('parsererror').length > 0) {
+          throw new Error('Erro de sintaxe XML em ppt/presentation.xml.');
+        }
+
+        const sldSzNode = presDoc.getElementsByTagNameNS('*', 'sldSz')[0];
+        let slideWidthEmu = 12192000;
+        let slideHeightEmu = 6858000;
+        if (sldSzNode) {
+          const cx = parseInt(sldSzNode.getAttribute('cx'), 10);
+          const cy = parseInt(sldSzNode.getAttribute('cy'), 10);
+          if (!isNaN(cx) && cx > 0) slideWidthEmu = cx;
+          if (!isNaN(cy) && cy > 0) slideHeightEmu = cy;
+        }
+
+        const relMap = {};
+        for (const rel of presRelsDoc.getElementsByTagNameNS('*', 'Relationship')) {
+          relMap[rel.getAttribute('Id')] = rel.getAttribute('Target');
+        }
+
+        const sldIdNodes = presDoc.getElementsByTagNameNS('*', 'sldId');
+        const slidesData = [];
+
+        for (let i = 0; i < sldIdNodes.length; i++) {
+          const sldIdNode = sldIdNodes[i];
+          const numericId = parseInt(sldIdNode.getAttribute('id'), 10);
+          const rId = sldIdNode.getAttributeNS(OOXML_NS.r, 'id') || sldIdNode.getAttribute('r:id');
+          const rawTarget = relMap[rId];
+          if (!rawTarget) continue;
+
+          const slidePath = resolveZipPath('ppt', rawTarget);
+          const slideFile = zip.file(slidePath);
+          if (!slideFile) continue;
+
+          const slideDoc = parser.parseFromString(await slideFile.async('text'), 'application/xml');
+          const bgColorNode = slideDoc.querySelector('bg srgbClr');
+          const slideBgColor = bgColorNode?.getAttribute('val') ? `#${bgColorNode.getAttribute('val')}` : '#111827';
+          const shapes = Array.from(slideDoc.getElementsByTagNameNS('*', 'sp'));
+
+          let topTitleText = '';
+          const allParagraphs = [];
+
+          for (const sp of shapes) {
+            const spFullText = Array.from(sp.getElementsByTagNameNS('*', 't'))
+              .map((t) => t.textContent || '')
+              .join(' ')
+              .trim();
+            if (spFullText) allParagraphs.push(spFullText);
+            if (!topTitleText && spFullText && isTopTitleShape(sp, slideHeightEmu)) {
+              topTitleText = spFullText;
+            }
+          }
+
+          const slideFileName = slidePath.split('/').pop();
+          const slideRelsPath = `ppt/slides/_rels/${slideFileName}.rels`;
+          let layoutName = 'Layout Padrão';
+          const slideRelsFile = zip.file(slideRelsPath);
+
+          if (slideRelsFile) {
+            const sRelsDoc = parser.parseFromString(await slideRelsFile.async('text'), 'application/xml');
+            for (const rel of sRelsDoc.getElementsByTagNameNS('*', 'Relationship')) {
+              if ((rel.getAttribute('Type') || '').includes('slideLayout')) {
+                const layoutFile = zip.file(resolveZipPath('ppt/slides', rel.getAttribute('Target') || ''));
+                if (layoutFile) {
+                  const lDoc = parser.parseFromString(await layoutFile.async('text'), 'application/xml');
+                  const cSld = lDoc.getElementsByTagNameNS('*', 'cSld')[0];
+                  if (cSld?.getAttribute('name')) layoutName = cSld.getAttribute('name');
+                }
+                break;
+              }
+            }
+          }
+
+          const lowerAll = allParagraphs.join(' ').toLowerCase();
+          const isMusicCandidate = Boolean(topTitleText) ||
+            ['hino', 'louvor', 'música', 'musica', 'clique para adicionar'].some((kw) => lowerAll.includes(kw));
+
+          slidesData.push({
+            index: slidesData.length,
+            number: slidesData.length + 1,
+            sldId: numericId,
+            rId,
+            path: slidePath,
+            relsPath: slideRelsPath,
+            layoutName,
+            bgColor: slideBgColor,
+            topTitleText,
+            extractedTitle: topTitleText || allParagraphs[0] || 'Slide sem texto',
+            isMusicCandidate
+          });
+        }
+
+        if (slidesData.length === 0) {
+          throw new Error('Nenhum slide válido encontrado no arquivo .pptx.');
+        }
+
+        AppState.originalBuffer = arrayBuffer;
+        AppState.fileName = fileName;
+        AppState.slideWidthEmu = slideWidthEmu;
+        AppState.slideHeightEmu = slideHeightEmu;
+        AppState.originalSlides = slidesData;
+        AppState.songs = [];
+        AppState.nextSongId = 1;
+
+        $('upload-section').classList.add('hidden');
+        $('workspace-section').classList.remove('hidden');
+        $('btn-export-top').classList.remove('hidden');
+        $('btn-export-top').classList.add('inline-flex');
+        $('loaded-filename').textContent = fileName;
+        $('loaded-slide-count').textContent = `${slidesData.length} slide${slidesData.length !== 1 ? 's' : ''}`;
+
+        const candidates = slidesData.filter((s) => s.isMusicCandidate);
+        if (candidates.length > 0) {
+          candidates.forEach((cand, idx) => {
+            addSongCard({
+              title: cand.topTitleText || `Música ${idx + 1}`,
+              mode: 'replace',
+              templateSlideIndex: cand.index,
+              afterSlideIndex: cand.index,
+              lyrics: ''
+            });
+          });
+        } else {
+          addSongCard({
+            title: 'Música 1',
+            mode: 'replace',
+            templateSlideIndex: 0,
+            afterSlideIndex: 0,
+            lyrics: ''
+          });
+        }
+
+        AppState.selectedSlideIndex = null;
+        AppState.selectedSongId = null;
+        renderSlidesList();
+        renderSongsContainer();
+        updateExportSummary();
+        showToast(`"${fileName}" carregado (${slidesData.length} slides).`, 'success');
+      } catch (err) {
+        console.error(err);
+        showToast(err.message || 'Erro ao abrir o arquivo .pptx.', 'error');
+      }
+    }
+
+    function renderSlidesList() {
+      const actionsBySlide = {};
+      AppState.songs.forEach((song) => {
+        const count = parseStanzas(song.lyrics).length;
+        if (!count) return;
+        const targetIdx = song.mode === 'replace' ? song.templateSlideIndex : song.afterSlideIndex;
+        (actionsBySlide[targetIdx] ||= []).push({
+          title: song.title || 'Música',
+          mode: song.mode,
+          count
+        });
+      });
+
+      $('slides-list').innerHTML = AppState.originalSlides.map((slide) => {
+        const actions = actionsBySlide[slide.index] || [];
+        const isReplaced = actions.some((a) => a.mode === 'replace');
+
+        let borderClass = 'border-slate-200 bg-slate-100/60 hover:border-slate-300';
+        if (AppState.selectedSlideIndex === slide.index) borderClass = 'border-[#4B2D3A] bg-[#4B2D3A]/10 ring-2 ring-[#4B2D3A]/20';
+        if (isReplaced) borderClass = 'border-[#8A3D4A]/60 bg-[#8A3D4A]/10';
+        else if (actions.length > 0) borderClass = 'border-emerald-300 bg-emerald-50';
+
+        const previewText = slide.topTitleText && slide.extractedTitle !== slide.topTitleText
+          ? slide.extractedTitle
+          : (slide.topTitleText || slide.extractedTitle || ' ');
+
+        const actionNotes = actions.map((a) => a.mode === 'replace'
+          ? `<div class="mt-2 text-[11px] font-semibold text-teal-800 bg-[#8A3D4A]/20 border border-[#8A3D4A]/40 px-2.5 py-1 rounded-lg">↻ Substituir por "${escapeHtml(a.title)}" (${a.count} slide${a.count > 1 ? 's' : ''})</div>`
+          : `<div class="mt-2 text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">↳ Inserir "${escapeHtml(a.title)}" logo após (+${a.count} slide${a.count > 1 ? 's' : ''})</div>`
+        ).join('');
+
+        return `
+          <div onclick="quickSelectModelSlide(${slide.index})" class="p-3 rounded-xl border ${borderClass} transition cursor-pointer flex items-start gap-3">
+            <div class="w-32 shrink-0">
+              <div class="aspect-video rounded-md overflow-hidden border border-slate-300 shadow-sm flex flex-col justify-center px-2 py-1.5 text-center" style="background:${slide.bgColor || '#111827'}">
+                ${slide.topTitleText ? `<div class="text-[6px] leading-tight font-bold text-white text-left border-b border-white/30 pb-1 mb-1 truncate">${escapeHtml(slide.topTitleText)}</div>` : ''}
+                <div class="text-[8px] leading-tight font-semibold text-white line-clamp-3 ${isReplaced ? 'opacity-50' : ''}">${escapeHtml(previewText)}</div>
+              </div>
+              <div class="text-[10px] text-slate-500 text-center mt-1">Slide ${slide.number}</div>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="text-[11px] font-medium text-slate-500 truncate">${escapeHtml(slide.layoutName)}</div>
+              <p class="text-xs font-semibold text-slate-900 mt-1 line-clamp-2 ${isReplaced ? 'line-through opacity-50' : ''}">${escapeHtml(slide.extractedTitle)}</p>
+              ${actionNotes}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function quickSelectModelSlide(slideIndex) {
+      const slide = AppState.originalSlides[slideIndex];
+      if (!slide) return;
+
+      AppState.selectedSlideIndex = slideIndex;
+      let song = AppState.songs.find((item) => item.templateSlideIndex === slideIndex);
+      if (!song) {
+        song = {
+          id: AppState.nextSongId++,
+          title: slide.topTitleText || `Música ${AppState.songs.length + 1}`,
+          mode: 'replace',
+          templateSlideIndex: slideIndex,
+          afterSlideIndex: slideIndex,
+          lyrics: ''
+        };
+        AppState.songs.push(song);
+      }
+      song.afterSlideIndex = slideIndex;
+      AppState.selectedSongId = song.id;
+      renderSongsContainer();
+      renderSlidesList();
+      updateExportSummary();
+    }
+
+    function addSongCard(defaults = {}) {
+      const id = AppState.nextSongId++;
+      const defaultIdx = defaults.templateSlideIndex ?? (AppState.selectedSlideIndex ?? 0);
+      AppState.songs.push({
+        id,
+        title: defaults.title || `Música ${AppState.songs.length + 1}`,
+        mode: defaults.mode || 'replace',
+        templateSlideIndex: defaultIdx,
+        afterSlideIndex: defaults.afterSlideIndex ?? defaultIdx,
+        lyrics: defaults.lyrics || ''
+      });
+      AppState.selectedSlideIndex = defaultIdx;
+      AppState.selectedSongId = id;
+    }
+
+    function removeSongCard(id) {
+      AppState.songs = AppState.songs.filter((s) => s.id !== id);
+      if (AppState.selectedSongId === id) {
+        const next = AppState.songs.find((s) => s.templateSlideIndex === AppState.selectedSlideIndex);
+        AppState.selectedSongId = next ? next.id : null;
+      }
+      renderSongsContainer();
+      renderSlidesList();
+      updateExportSummary();
+    }
+
+    function splitStanzaInHalf(songId, stanzaIdx) {
+      const song = AppState.songs.find((s) => s.id === songId);
+      if (!song) return;
+      const stanzas = parseStanzas(song.lyrics);
+      const target = stanzas[stanzaIdx];
+      if (!target) return;
+
+      const lines = target.split('\n');
+      if (lines.length < 2) {
+        showToast('Esta estrofe tem apenas 1 linha para dividir.', 'warning');
+        return;
+      }
+
+      const mid = Math.ceil(lines.length / 2);
+      stanzas.splice(stanzaIdx, 1, lines.slice(0, mid).join('\n'), lines.slice(mid).join('\n'));
+      song.lyrics = stanzas.join('\n\n');
+
+      renderSongsContainer();
+      renderSlidesList();
+      updateExportSummary();
+      showToast('Estrofe dividida em 2 slides.', 'info');
+    }
+
+    function renderSongsContainer() {
+      const container = $('songs-container');
+      const visibleSongs = AppState.selectedSlideIndex !== null && AppState.selectedSongId !== null
+        ? AppState.songs.filter((song) => song.id === AppState.selectedSongId)
+        : [];
+
+      if (visibleSongs.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center shadow-sm">
+            <p class="text-sm font-semibold text-slate-700">Selecione um slide para editar.</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = visibleSongs.map((song, idx) => {
+        const stanzas = parseStanzas(song.lyrics);
+        const selectedModel = AppState.originalSlides[song.templateSlideIndex] || AppState.originalSlides[0];
+
+        const modelOptions = AppState.originalSlides.map((s) => {
+          const preview = s.extractedTitle.length > 38 ? `${s.extractedTitle.substring(0, 38)}...` : s.extractedTitle;
+          const selected = s.index === song.templateSlideIndex ? 'selected' : '';
+          const tag = s.topTitleText ? ' [Título Topo]' : '';
+          return `<option value="${s.index}" ${selected}>Slide ${s.number}${tag} — ${escapeHtml(preview)}</option>`;
+        }).join('');
+
+        const topTitleInfo = selectedModel?.topTitleText
+          ? `<div class="px-3 py-2 rounded-xl bg-[#4B2D3A]/15 border border-[#4B2D3A]/30 text-xs text-[#4B2D3A] flex items-center gap-2">
+              <span class="font-bold text-[#8A3D4A]">✓ Título Superior Mantido:</span>
+              <span class="font-semibold truncate">"${escapeHtml(selectedModel.topTitleText)}"</span>
+            </div>`
+          : '';
+
+        let stanzasPreviewHtml = '';
+        if (stanzas.length > 0) {
+          const previewFontStyle = `font-family: '${AppState.style.fontFamily}', sans-serif; color: ${AppState.style.textColor}; font-weight: ${AppState.style.bold ? '700' : '400'};`;
+          stanzasPreviewHtml = `
+            <div class="mt-4 pt-4 border-t border-slate-200">
+              <div class="mb-2.5">
+                <span class="text-xs font-bold text-[#4B2D3A] uppercase tracking-wider">
+                  Prévia dos slides (${stanzas.length} estrofe${stanzas.length > 1 ? 's' : ''})
+                </span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-1">
+                ${stanzas.map((stanza, sIdx) => `
+                  <div class="bg-slate-800 rounded-xl p-3 border border-slate-700 hover:border-[#8A3D4A] transition flex flex-col justify-between">
+                    <div class="flex items-center justify-between text-[10px] text-slate-200 mb-2 font-semibold">
+                      <span class="text-[#39A69A]">SLIDE #${sIdx + 1}</span>
+                      <button type="button" onclick="splitStanzaInHalf(${song.id}, ${sIdx})" class="px-2 py-0.5 rounded bg-slate-600 hover:bg-[#8A3D4A] text-white transition cursor-pointer" title="Dividir estrofe ao meio">
+                        ✂ Dividir
+                      </button>
+                    </div>
+                    ${selectedModel?.topTitleText ? `<div class="text-[9px] font-bold text-white bg-slate-700 border border-slate-600 rounded px-2 py-0.5 mb-1.5 truncate">${escapeHtml(selectedModel.topTitleText)}</div>` : ''}
+                    <textarea data-song-id="${song.id}" data-stanza-idx="${sIdx}" rows="3" style="${previewFontStyle}" class="stanza-editor w-full bg-transparent text-xs text-center text-white resize-none focus:outline-none focus:bg-slate-700 rounded p-1.5 leading-relaxed">${escapeHtml(applyTextCase(stanza))}</textarea>
+                  </div>`).join('')}
+              </div>
+            </div>`;
+        }
+
+        return `
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden" data-card-id="${song.id}">
+            <div class="px-5 py-3.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between gap-3">
+              <div class="flex items-center gap-2.5 flex-1 min-w-0">
+                <span class="w-7 h-7 rounded-lg bg-[#8A3D4A] text-white text-xs font-extrabold flex items-center justify-center shrink-0">${idx + 1}</span>
+                <input type="text" value="${escapeHtml(song.title)}" placeholder="Nome identificador da música..." data-song-id="${song.id}" class="song-title-input w-full bg-transparent font-bold text-sm sm:text-base text-slate-800 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#8A3D4A] rounded-lg px-2 py-1" />
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <span class="px-2.5 py-1 rounded-lg bg-[#4B2D3A]/15 border border-[#4B2D3A]/30 text-xs font-bold text-[#4B2D3A]">
+                  ${stanzas.length} slide${stanzas.length !== 1 ? 's' : ''}
+                </span>
+                <button type="button" onclick="removeSongCard(${song.id})" title="Remover bloco" class="p-1.5 text-slate-600 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition cursor-pointer">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="p-5 space-y-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Slide modelo</label>
+                <select data-song-id="${song.id}" class="song-model-select w-full text-xs sm:text-sm bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-[#4B2D3A] font-medium focus:outline-none focus:ring-2 focus:ring-[#4B2D3A]">
+                  ${modelOptions}
+                </select>
+              </div>
+
+              ${topTitleInfo}
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Como aplicar</label>
+                  <select data-song-id="${song.id}" class="song-mode-select w-full text-xs sm:text-sm bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#8A3D4A]">
+                    <option value="replace" ${song.mode === 'replace' ? 'selected' : ''}>Substituir o slide modelo</option>
+                    <option value="after" ${song.mode === 'after' ? 'selected' : ''}>Inserir depois de um slide</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Letra da música</label>
+                <textarea data-song-id="${song.id}" rows="6" placeholder="Cole a letra aqui..." class="song-lyrics-textarea w-full rounded-xl bg-slate-100 border border-slate-300 p-3.5 text-sm text-slate-800 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#8A3D4A] focus:border-[#8A3D4A] leading-relaxed">${escapeHtml(song.lyrics)}</textarea>
+              </div>
+
+              ${stanzasPreviewHtml}
+            </div>
+          </div>`;
+      }).join('');
+
+      attachSongCardEvents();
+    }
+
+    function attachSongCardEvents() {
+      document.querySelectorAll('.song-title-input').forEach((input) => {
+        input.addEventListener('input', (e) => {
+          const song = AppState.songs.find((s) => s.id === Number(e.target.dataset.songId));
+          if (song) {
+            song.title = e.target.value;
+            renderSlidesList();
+          }
+        });
+      });
+
+      document.querySelectorAll('.song-model-select').forEach((select) => {
+        select.addEventListener('change', (e) => {
+          const song = AppState.songs.find((s) => s.id === Number(e.target.dataset.songId));
+          if (song) {
+            const newIdx = Number(e.target.value);
+            song.templateSlideIndex = newIdx;
+            song.afterSlideIndex = song.mode === 'replace' ? newIdx : (AppState.selectedSlideIndex ?? song.afterSlideIndex);
+            renderSongsContainer();
+            renderSlidesList();
+            updateExportSummary();
+          }
+        });
+      });
+
+      document.querySelectorAll('.song-mode-select').forEach((select) => {
+        select.addEventListener('change', (e) => {
+          const song = AppState.songs.find((s) => s.id === Number(e.target.dataset.songId));
+          if (song) {
+            song.mode = e.target.value;
+            song.afterSlideIndex = song.mode === 'after'
+              ? (AppState.selectedSlideIndex ?? song.templateSlideIndex)
+              : song.templateSlideIndex;
+            renderSongsContainer();
+            renderSlidesList();
+            updateExportSummary();
+          }
+        });
+      });
+
+      document.querySelectorAll('.song-lyrics-textarea').forEach((textarea) => {
+        textarea.addEventListener('input', (e) => {
+          const song = AppState.songs.find((s) => s.id === Number(e.target.dataset.songId));
+          if (!song) return;
+
+          song.lyrics = e.target.value;
+          const { songId } = e.target.dataset;
+          const { selectionStart, selectionEnd } = e.target;
+
+          renderSongsContainer();
+          renderSlidesList();
+          updateExportSummary();
+
+          const restored = document.querySelector(`.song-lyrics-textarea[data-song-id="${songId}"]`);
+          if (restored) {
+            restored.focus();
+            restored.setSelectionRange(selectionStart, selectionEnd);
+          }
+        });
+      });
+
+      document.querySelectorAll('.stanza-editor').forEach((editor) => {
+        editor.addEventListener('input', (e) => {
+          const songId = Number(e.target.dataset.songId);
+          const stanzaIdx = Number(e.target.dataset.stanzaIdx);
+          const song = AppState.songs.find((s) => s.id === songId);
+          if (!song) return;
+
+          const currentStanzas = parseStanzas(song.lyrics);
+          currentStanzas[stanzaIdx] = e.target.value;
+          song.lyrics = currentStanzas.join('\n\n');
+
+          const mainTextarea = document.querySelector(`[data-card-id="${songId}"] .song-lyrics-textarea`);
+          if (mainTextarea) mainTextarea.value = song.lyrics;
+        });
+      });
+    }
+
+    function updateExportSummary() {
+      const totalNewSlides = AppState.songs.reduce((acc, s) => acc + parseStanzas(s.lyrics).length, 0);
+      $('btn-export-top').disabled = totalNewSlides === 0;
+    }
+
+    async function generateAndDownloadPptx() {
+      try {
+        const validSongs = AppState.songs.filter((s) => parseStanzas(s.lyrics).length > 0);
+        if (validSongs.length === 0) {
+          showToast('Preencha pelo menos uma música.', 'warning');
+          return;
+        }
+        if (!isFileLoaded()) {
+          throw new Error('Abra um arquivo PowerPoint antes.');
+        }
+        if (typeof JSZip === 'undefined') {
+          throw new Error('Componente JSZip indisponível. Verifique sua conexão e atualize a página.');
+        }
+
+        const outZip = await JSZip.loadAsync(AppState.originalBuffer);
+        const parser = new DOMParser();
+        const serializer = new XMLSerializer();
+
+        const presDoc = parser.parseFromString(await outZip.file('ppt/presentation.xml').async('text'), 'application/xml');
+        const presRelsDoc = parser.parseFromString(await outZip.file('ppt/_rels/presentation.xml.rels').async('text'), 'application/xml');
+        const contentTypesDoc = parser.parseFromString(await outZip.file('[Content_Types].xml').async('text'), 'application/xml');
+
+        let maxSlideNum = 0;
+        outZip.forEach((relPath) => {
+          const m = relPath.match(/^ppt\/slides\/slide(\d+)\.xml$/i);
+          if (m) maxSlideNum = Math.max(maxSlideNum, parseInt(m[1], 10));
+        });
+
+        let maxSldId = 256;
+        for (const el of presDoc.getElementsByTagNameNS('*', 'sldId')) {
+          const val = parseInt(el.getAttribute('id'), 10);
+          if (!isNaN(val)) maxSldId = Math.max(maxSldId, val);
+        }
+
+        let maxRId = 1;
+        for (const el of presRelsDoc.getElementsByTagNameNS('*', 'Relationship')) {
+          const m = (el.getAttribute('Id') || '').match(/^rId(\d+)$/i);
+          if (m) maxRId = Math.max(maxRId, parseInt(m[1], 10));
+        }
+
+        const timeline = AppState.originalSlides.map((slideObj) => ({ type: 'original', slideObj }));
+
+        const orderedSongs = validSongs
+          .map((song, order) => ({
+            song,
+            order,
+            anchorIdx: song.mode === 'replace' ? song.templateSlideIndex : song.afterSlideIndex
+          }))
+          .sort((a, b) => (b.anchorIdx !== a.anchorIdx ? b.anchorIdx - a.anchorIdx : b.order - a.order));
+
+        for (const item of orderedSongs) {
+          const { song } = item;
+          const stanzas = parseStanzas(song.lyrics);
+          const modelSlideObj = AppState.originalSlides[song.templateSlideIndex] || AppState.originalSlides[0];
+          const generatedBatch = stanzas.map((stanza) => ({
+            type: 'generated',
+            templateSlideObj: modelSlideObj,
+            stanzaText: applyTextCase(stanza)
+          }));
+
+          const pos = timeline.findIndex((entry) => entry.type === 'original' && entry.slideObj.index === item.anchorIdx);
+          if (pos !== -1) {
+            timeline.splice(song.mode === 'replace' ? pos : pos + 1, song.mode === 'replace' ? 1 : 0, ...generatedBatch);
+          } else {
+            timeline.push(...generatedBatch);
+          }
+        }
+
+        const sldIdLst = presDoc.getElementsByTagNameNS('*', 'sldIdLst')[0];
+        if (!sldIdLst) throw new Error('Elemento <p:sldIdLst> não encontrado.');
+        while (sldIdLst.firstChild) sldIdLst.removeChild(sldIdLst.firstChild);
+
+        const presRelsRoot = presRelsDoc.documentElement;
+        const presRelsNs = presRelsRoot.namespaceURI || OOXML_NS.rel;
+        const ctRoot = contentTypesDoc.documentElement;
+        const ctNs = ctRoot.namespaceURI || OOXML_NS.ct;
+        const keptOriginalPaths = new Set();
+
+        for (const entry of timeline) {
+          if (entry.type === 'original') {
+            keptOriginalPaths.add(entry.slideObj.path);
+            const sldIdEl = presDoc.createElementNS(OOXML_NS.p, 'p:sldId');
+            sldIdEl.setAttribute('id', String(entry.slideObj.sldId));
+            sldIdEl.setAttributeNS(OOXML_NS.r, 'r:id', entry.slideObj.rId);
+            sldIdLst.appendChild(sldIdEl);
+          } else {
+            maxSlideNum++;
+            maxSldId++;
+            maxRId++;
+
+            const newSlideFileName = `slide${maxSlideNum}.xml`;
+            const newSlidePath = `ppt/slides/${newSlideFileName}`;
+            const newSlideRelsPath = `ppt/slides/_rels/${newSlideFileName}.rels`;
+            const newRId = `rId${maxRId}`;
+
+            const clonedSlideDoc = parser.parseFromString(
+              await outZip.file(entry.templateSlideObj.path).async('text'),
+              'application/xml'
+            );
+            buildStandardLyricSlideOOXML(clonedSlideDoc, entry.stanzaText, maxSlideNum);
+            outZip.file(newSlidePath, serializer.serializeToString(clonedSlideDoc));
+
+            const templateRelsFile = outZip.file(entry.templateSlideObj.relsPath);
+            if (templateRelsFile) {
+              outZip.file(newSlideRelsPath, await templateRelsFile.async('text'));
+            }
+
+            const relEl = presRelsDoc.createElementNS(presRelsNs, 'Relationship');
+            relEl.setAttribute('Id', newRId);
+            relEl.setAttribute('Type', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide');
+            relEl.setAttribute('Target', `slides/${newSlideFileName}`);
+            presRelsRoot.appendChild(relEl);
+
+            const overrideEl = contentTypesDoc.createElementNS(ctNs, 'Override');
+            overrideEl.setAttribute('PartName', `/${newSlidePath}`);
+            overrideEl.setAttribute('ContentType', 'application/vnd.openxmlformats-officedocument.presentationml.slide+xml');
+            ctRoot.appendChild(overrideEl);
+
+            const sldIdEl = presDoc.createElementNS(OOXML_NS.p, 'p:sldId');
+            sldIdEl.setAttribute('id', String(maxSldId));
+            sldIdEl.setAttributeNS(OOXML_NS.r, 'r:id', newRId);
+            sldIdLst.appendChild(sldIdEl);
+          }
+        }
+
+        for (const origSlide of AppState.originalSlides) {
+          if (!keptOriginalPaths.has(origSlide.path)) {
+            outZip.remove(origSlide.path);
+            if (outZip.file(origSlide.relsPath)) outZip.remove(origSlide.relsPath);
+
+            Array.from(presRelsDoc.getElementsByTagNameNS('*', 'Relationship')).forEach((r) => {
+              if (r.getAttribute('Id') === origSlide.rId) r.parentNode.removeChild(r);
+            });
+            Array.from(contentTypesDoc.getElementsByTagNameNS('*', 'Override')).forEach((ov) => {
+              if (ov.getAttribute('PartName') === `/${origSlide.path}`) ov.parentNode.removeChild(ov);
+            });
+          }
+        }
+
+        outZip.file('ppt/presentation.xml', serializer.serializeToString(presDoc));
+        outZip.file('ppt/_rels/presentation.xml.rels', serializer.serializeToString(presRelsDoc));
+        outZip.file('[Content_Types].xml', serializer.serializeToString(contentTypesDoc));
+
+        const appXmlFile = outZip.file('docProps/app.xml');
+        if (appXmlFile) {
+          const appDoc = parser.parseFromString(await appXmlFile.async('text'), 'application/xml');
+          const slidesCountNode = appDoc.getElementsByTagNameNS('*', 'Slides')[0];
+          if (slidesCountNode) {
+            slidesCountNode.textContent = String(timeline.length);
+            outZip.file('docProps/app.xml', serializer.serializeToString(appDoc));
+          }
+        }
+
+        const finalArrayBuffer = await outZip.generateAsync({
+          type: 'arraybuffer',
+          compression: 'DEFLATE',
+          compressionOptions: { level: 6 }
+        });
+
+        const verifyZip = await JSZip.loadAsync(finalArrayBuffer);
+        const verifyPresDoc = parser.parseFromString(
+          await verifyZip.file('ppt/presentation.xml').async('text'),
+          'application/xml'
+        );
+        if (verifyPresDoc.getElementsByTagName('parsererror').length > 0) {
+          throw new Error('Falha na validação XML após geração.');
+        }
+
+        const originalName = AppState.fileName || 'Apresentacao.pptx';
+        const outputFileName = `${originalName.replace(/\.pptx$/i, '')} atualizado.pptx`;
+
+        const blob = new Blob([finalArrayBuffer], {
+          type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+        });
+        const downloadUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = outputFileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(downloadUrl), 5000);
+
+        showToast(`${outputFileName} foi atualizado!`, 'success');
+      } catch (err) {
+        console.error(err);
+        showToast(`Erro ao gerar .pptx: ${err.message}`, 'error');
+      }
+    }
+
+    function buildStandardLyricSlideOOXML(slideDoc, stanzaText, uniqueSeed) {
+      const spTree = slideDoc.getElementsByTagNameNS('*', 'spTree')[0];
+      if (!spTree) return;
+
+      const slideW = AppState.slideWidthEmu;
+      const slideH = AppState.slideHeightEmu;
+
+      let maxShapeId = 100;
+      for (const el of slideDoc.getElementsByTagNameNS('*', 'cNvPr')) {
+        const idVal = parseInt(el.getAttribute('id') || '0', 10);
+        if (!isNaN(idVal)) maxShapeId = Math.max(maxShapeId, idVal);
+      }
+
+      for (const sp of Array.from(spTree.getElementsByTagNameNS('*', 'sp'))) {
+        if (sp.parentNode !== spTree || isTopTitleShape(sp, slideH)) continue;
+        const hasPh = sp.getElementsByTagNameNS('*', 'ph').length > 0;
+        const hasTxBody = sp.getElementsByTagNameNS('*', 'txBody').length > 0;
+        const rawTxt = (sp.textContent || '').trim().toLowerCase();
+        if (hasPh || hasTxBody || rawTxt.includes('clique para adicionar')) {
+          spTree.removeChild(sp);
+        }
+      }
+
+      const boxX = Math.round(slideW * 0.05);
+      const boxW = Math.round(slideW * 0.90);
+      const topPct = Math.max(5, Math.min(45, AppState.style.topMarginPct)) / 100;
+      const boxY = Math.round(slideH * topPct);
+      const boxH = Math.max(Math.round(slideH * 0.25), Math.round(slideH * (0.95 - topPct)));
+      const newShapeId = maxShapeId + 1;
+
+      const sp = slideDoc.createElementNS(OOXML_NS.p, 'p:sp');
+      const nvSpPr = slideDoc.createElementNS(OOXML_NS.p, 'p:nvSpPr');
+      const cNvPr = slideDoc.createElementNS(OOXML_NS.p, 'p:cNvPr');
+      cNvPr.setAttribute('id', String(newShapeId));
+      cNvPr.setAttribute('name', `CaixaLetra_${uniqueSeed}_${newShapeId}`);
+      const cNvSpPr = slideDoc.createElementNS(OOXML_NS.p, 'p:cNvSpPr');
+      cNvSpPr.setAttribute('txBox', '1');
+      nvSpPr.append(cNvPr, cNvSpPr, slideDoc.createElementNS(OOXML_NS.p, 'p:nvPr'));
+
+      const spPr = slideDoc.createElementNS(OOXML_NS.p, 'p:spPr');
+      const xfrm = slideDoc.createElementNS(OOXML_NS.a, 'a:xfrm');
+      const off = slideDoc.createElementNS(OOXML_NS.a, 'a:off');
+      off.setAttribute('x', String(boxX));
+      off.setAttribute('y', String(boxY));
+      const ext = slideDoc.createElementNS(OOXML_NS.a, 'a:ext');
+      ext.setAttribute('cx', String(boxW));
+      ext.setAttribute('cy', String(boxH));
+      xfrm.append(off, ext);
+
+      const prstGeom = slideDoc.createElementNS(OOXML_NS.a, 'a:prstGeom');
+      prstGeom.setAttribute('prst', 'rect');
+      prstGeom.appendChild(slideDoc.createElementNS(OOXML_NS.a, 'a:avLst'));
+      spPr.append(xfrm, prstGeom, slideDoc.createElementNS(OOXML_NS.a, 'a:noFill'));
+
+      const txBody = slideDoc.createElementNS(OOXML_NS.p, 'p:txBody');
+      const bodyPr = slideDoc.createElementNS(OOXML_NS.a, 'a:bodyPr');
+      bodyPr.setAttribute('wrap', 'square');
+      bodyPr.setAttribute('anchor', 'ctr');
+      bodyPr.setAttribute('lIns', '91440');
+      bodyPr.setAttribute('rIns', '91440');
+      bodyPr.setAttribute('tIns', '45720');
+      bodyPr.setAttribute('bIns', '45720');
+      txBody.append(bodyPr, slideDoc.createElementNS(OOXML_NS.a, 'a:lstStyle'));
+
+      const fontSizeHund = String(Math.round(AppState.style.fontSizePt * 100));
+      const cleanHex = (AppState.style.textColor || '#FFFFFF').replace('#', '').toUpperCase();
+      const isBold = AppState.style.bold ? '1' : '0';
+      const fontFace = AppState.style.fontFamily || 'Arial';
+
+      for (const line of stanzaText.split('\n')) {
+        const p = slideDoc.createElementNS(OOXML_NS.a, 'a:p');
+        const pPr = slideDoc.createElementNS(OOXML_NS.a, 'a:pPr');
+        pPr.setAttribute('algn', 'ctr');
+        p.appendChild(pPr);
+
+        const r = slideDoc.createElementNS(OOXML_NS.a, 'a:r');
+        const rPr = slideDoc.createElementNS(OOXML_NS.a, 'a:rPr');
+        rPr.setAttribute('lang', 'pt-BR');
+        rPr.setAttribute('sz', fontSizeHund);
+        rPr.setAttribute('b', isBold);
+        rPr.setAttribute('dirty', '0');
+
+        const solidFill = slideDoc.createElementNS(OOXML_NS.a, 'a:solidFill');
+        const srgbClr = slideDoc.createElementNS(OOXML_NS.a, 'a:srgbClr');
+        srgbClr.setAttribute('val', cleanHex);
+        solidFill.appendChild(srgbClr);
+
+        const latin = slideDoc.createElementNS(OOXML_NS.a, 'a:latin');
+        latin.setAttribute('typeface', fontFace);
+        const cs = slideDoc.createElementNS(OOXML_NS.a, 'a:cs');
+        cs.setAttribute('typeface', fontFace);
+
+        rPr.append(solidFill, latin, cs);
+
+        const t = slideDoc.createElementNS(OOXML_NS.a, 'a:t');
+        t.textContent = line;
+
+        r.append(rPr, t);
+        p.appendChild(r);
+        txBody.appendChild(p);
+      }
+
+      sp.append(nvSpPr, spPr, txBody);
+      spTree.appendChild(sp);
+    }
+
+    function handleFileSelection(file) {
+      if (isFileLoaded()) {
+        showToast('Clique em "Carregar Outro Arquivo" para substituir a apresentação atual.', 'warning');
+        return;
+      }
+      if (!file.name.toLowerCase().endsWith('.pptx')) {
+        showToast('Selecione um arquivo PowerPoint válido (.pptx).', 'error');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => loadPptxBuffer(e.target.result, file.name);
+      reader.onerror = () => showToast('Erro ao ler o arquivo selecionado.', 'error');
+      reader.readAsArrayBuffer(file);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const appearanceButton = $('btn-toggle-appearance');
+      const appearancePanel = $('appearance-panel');
+      const appearanceChevron = $('appearance-chevron');
+
+      appearanceButton.addEventListener('click', () => {
+        const isOpening = appearancePanel.classList.contains('hidden');
+        appearancePanel.classList.toggle('hidden');
+        appearanceButton.setAttribute('aria-expanded', String(isOpening));
+        appearanceChevron.classList.toggle('rotate-180', isOpening);
+      });
+
+      const dropZone = $('drop-zone');
+      const fileInput = $('file-input');
+
+      dropZone.addEventListener('click', () => {
+        if (!isFileLoaded()) fileInput.click();
+      });
+
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) handleFileSelection(file);
+      });
+
+      let dragCounter = 0;
+
+      document.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (isFileLoaded()) return;
+        dragCounter++;
+        dropZone.classList.add('drop-active');
+        document.body.classList.add('dragging-file');
+      });
+
+      document.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer) {
+          e.dataTransfer.dropEffect = isFileLoaded() ? 'none' : 'copy';
+        }
+      });
+
+      document.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (isFileLoaded()) return;
+        if (--dragCounter <= 0) {
+          dragCounter = 0;
+          dropZone.classList.remove('drop-active');
+          document.body.classList.remove('dragging-file');
+        }
+      });
+
+      document.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dragCounter = 0;
+        dropZone.classList.remove('drop-active');
+        document.body.classList.remove('dragging-file');
+        if (isFileLoaded()) return;
+        const file = e.dataTransfer?.files?.[0];
+        if (file) handleFileSelection(file);
+      });
+
+      $('btn-change-file').addEventListener('click', () => {
+        resetToUploadScreen();
+      });
+
+      $('btn-export-top').addEventListener('click', generateAndDownloadPptx);
+
+      $('fmt-font-family').addEventListener('change', (e) => {
+        AppState.style.fontFamily = e.target.value;
+        renderSongsContainer();
+      });
+
+      $('fmt-font-size').addEventListener('input', (e) => {
+        AppState.style.fontSizePt = Number(e.target.value);
+        $('fmt-font-size-val').textContent = `${AppState.style.fontSizePt} pt`;
+      });
+
+      $('fmt-text-color').addEventListener('input', (e) => {
+        AppState.style.textColor = e.target.value.toUpperCase();
+        $('fmt-text-color-hex').value = AppState.style.textColor;
+        renderSongsContainer();
+      });
+
+      $('fmt-text-color-hex').addEventListener('input', (e) => {
+        let val = e.target.value.trim();
+        if (!val.startsWith('#')) val = `#${val}`;
+        if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+          AppState.style.textColor = val.toUpperCase();
+          $('fmt-text-color').value = AppState.style.textColor;
+          renderSongsContainer();
+        }
+      });
+
+      $('fmt-top-margin').addEventListener('input', (e) => {
+        AppState.style.topMarginPct = Number(e.target.value);
+        $('fmt-top-margin-val').textContent = `${AppState.style.topMarginPct}%`;
+      });
+
+      $('fmt-bold').addEventListener('change', (e) => {
+        AppState.style.bold = e.target.checked;
+        renderSongsContainer();
+      });
+
+      $('fmt-uppercase').addEventListener('change', (e) => {
+        AppState.style.uppercase = e.target.checked;
+        renderSongsContainer();
+      });
+    });
+  </script>
+</body>
+</html>
